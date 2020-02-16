@@ -1,32 +1,17 @@
 use legion::prelude::*;
-use rltk::{Console, GameState, Rltk, VirtualKeyCode, RGB};
-use std::cmp::{max, min};
+use rltk::{Console, GameState, Rltk, RGB};
+mod rect;
+use rect::Rect;
+mod components;
+use components::{Player, Position, Renderable};
+mod map;
+use map::*;
+mod player;
+use player::*;
 
-struct State {
+pub struct State {
     ecs: World,
     map: Vec<TileType>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Position {
-    x: i32,
-    y: i32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Renderable {
-    glyph: u8,
-    fg: RGB,
-    bg: RGB,
-}
-
-#[derive(Debug)]
-struct Player {}
-
-#[derive(PartialEq, Copy, Clone)]
-enum TileType {
-    Wall,
-    Floor,
 }
 
 impl GameState for State {
@@ -61,10 +46,17 @@ fn main() {
         map: vec![],
     };
 
+    let (rooms, map) = new_map_rooms_and_corridors();
+    gs.map = map;
+    let (player_x, player_y) = rooms[0].center();
+
     gs.ecs.insert(
         (),
         vec![(
-            Position { x: 40, y: 25 },
+            Position {
+                x: player_x,
+                y: player_y,
+            },
             Renderable {
                 glyph: rltk::to_cp437('@'),
                 fg: RGB::named(rltk::YELLOW),
@@ -74,96 +66,5 @@ fn main() {
         )],
     );
 
-    gs.map = new_map();
-
     rltk::main_loop(context, gs);
-}
-
-fn try_move_player(delta_x: i32, delta_y: i32, gs: &mut State) {
-    for (mut pos, _) in <(Write<Position>, Read<Player>)>::query().iter(&mut gs.ecs) {
-        let destination_idx = xy_idx(pos.x + delta_x, pos.y + delta_y);
-        if gs.map[destination_idx] != TileType::Wall {
-            pos.x = min(79, max(0, pos.x + delta_x));
-            pos.y = min(49, max(0, pos.y + delta_y));
-        }
-    }
-}
-
-fn player_input(gs: &mut State, ctx: &mut Rltk) {
-    match ctx.key {
-        None => {}
-        Some(key) => match key {
-            VirtualKeyCode::Left | VirtualKeyCode::H => try_move_player(-1, 0, gs),
-            VirtualKeyCode::Right | VirtualKeyCode::L => try_move_player(1, 0, gs),
-            VirtualKeyCode::Up | VirtualKeyCode::K => try_move_player(0, -1, gs),
-            VirtualKeyCode::Down | VirtualKeyCode::J => try_move_player(0, 1, gs),
-            _ => {}
-        },
-    }
-}
-
-pub fn xy_idx(x: i32, y: i32) -> usize {
-    (y as usize * 80) + x as usize
-}
-
-fn new_map() -> Vec<TileType> {
-    let mut map = vec![TileType::Floor; 80 * 50];
-
-    for x in 0..80 {
-        map[xy_idx(x, 0)] = TileType::Wall;
-        map[xy_idx(x, 49)] = TileType::Wall;
-    }
-
-    for y in 0..50 {
-        map[xy_idx(0, y)] = TileType::Wall;
-        map[xy_idx(79, y)] = TileType::Wall;
-    }
-
-    let mut rng = rltk::RandomNumberGenerator::new();
-
-    for _i in 0..400 {
-        let x = rng.roll_dice(1, 79);
-        let y = rng.roll_dice(1, 49);
-        let idx = xy_idx(x, y);
-        if idx != xy_idx(40, 25) {
-            map[idx] = TileType::Wall;
-        }
-    }
-
-    map
-}
-
-fn draw_map(map: &[TileType], ctx: &mut Rltk) {
-    let mut y = 0;
-    let mut x = 0;
-    for tile in map.iter() {
-        // Render a tile depending upon the tile type
-        match tile {
-            TileType::Floor => {
-                ctx.set(
-                    x,
-                    y,
-                    RGB::from_f32(0.5, 0.5, 0.5),
-                    RGB::from_f32(0., 0., 0.),
-                    rltk::to_cp437('.'),
-                );
-            }
-            TileType::Wall => {
-                ctx.set(
-                    x,
-                    y,
-                    RGB::from_f32(0.0, 1.0, 0.0),
-                    RGB::from_f32(0., 0., 0.),
-                    rltk::to_cp437('#'),
-                );
-            }
-        }
-
-        // Move the coordinates
-        x += 1;
-        if x > 79 {
-            x = 0;
-            y += 1;
-        }
-    }
 }
