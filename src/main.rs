@@ -3,15 +3,16 @@ use rltk::{Console, GameState, Rltk, RGB};
 mod rect;
 use rect::Rect;
 mod components;
-use components::{Player, Position, Renderable};
+use components::{Player, Position, Renderable, Viewshed};
 mod map;
 use map::*;
 mod player;
 use player::*;
+mod visibility_system;
 
 pub struct State {
-    ecs: World,
-    map: Vec<TileType>,
+    world: World,
+    schedule: legion::schedule::Schedule,
 }
 
 impl GameState for State {
@@ -19,18 +20,21 @@ impl GameState for State {
         ctx.cls();
 
         player_input(self, ctx);
+
         self.run_systems();
 
-        draw_map(&self.map, ctx);
+        draw_map(&mut self.world, ctx);
 
-        for (pos, render) in <(Read<Position>, Read<Renderable>)>::query().iter(&mut self.ecs) {
+        for (pos, render) in <(Read<Position>, Read<Renderable>)>::query().iter(&mut self.world) {
             ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
         }
     }
 }
 
 impl State {
-    fn run_systems(&mut self) {}
+    fn run_systems(&mut self) {
+        self.schedule.execute(&mut self.world);
+    }
 }
 
 fn main() {
@@ -41,16 +45,19 @@ fn main() {
         .build();
 
     let universe = Universe::new();
+
     let mut gs = State {
-        ecs: universe.create_world(),
-        map: vec![],
+        world: universe.create_world(),
+        schedule: Schedule::builder()
+            .add_system(visibility_system::visibility_system())
+            .build(),
     };
+    let map = Map::new_map_rooms_and_corridors();
+    let (player_x, player_y) = map.rooms[0].center();
 
-    let (rooms, map) = new_map_rooms_and_corridors();
-    gs.map = map;
-    let (player_x, player_y) = rooms[0].center();
+    gs.world.resources.insert(map);
 
-    gs.ecs.insert(
+    gs.world.insert(
         (),
         vec![(
             Position {
@@ -63,6 +70,11 @@ fn main() {
                 bg: RGB::named(rltk::BLACK),
             },
             Player {},
+            Viewshed {
+                visible_tiles: Vec::new(),
+                range: 8,
+                dirty: true,
+            },
         )],
     );
 
