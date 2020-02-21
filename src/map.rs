@@ -64,7 +64,6 @@ impl Map {
         const MAX_ROOMS: i32 = 30;
         const MIN_SIZE: i32 = 6;
         const MAX_SIZE: i32 = 10;
-
         let mut rng = RandomNumberGenerator::new();
 
         for _ in 0..MAX_ROOMS {

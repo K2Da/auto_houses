@@ -17,8 +17,16 @@ pub struct Renderable {
 pub struct Player {}
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Monster {}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Viewshed {
     pub visible_tiles: Vec<rltk::Point>,
     pub range: i32,
     pub dirty: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Name {
+    pub name: String,
 }
