@@ -1,4 +1,7 @@
+use legion::entity::Entity;
 use rltk::RGB;
+
+// TODO: dataのないcomponentはタグに変えるべき？
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position {
@@ -29,4 +32,25 @@ pub struct Viewshed {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Name {
     pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BlocksTile {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CombatStats {
+    pub max_hp: i32,
+    pub hp: i32,
+    pub defense: i32,
+    pub power: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WantsToMelee {
+    pub target: Entity,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SufferDamage {
+    pub amount: i32,
 }

@@ -10,26 +10,57 @@ use map::*;
 mod player;
 use crate::components::Monster;
 use player::*;
+mod damage_system;
+mod delete_the_dead_system;
+mod map_indexing_system;
+mod melee_combat_system;
 mod monster_ai_system;
 mod visibility_system;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum RunState {
-    Paused,
-    Running,
+    AwaitingInput,
+    PreRun,
+    PlayerTurn,
+    MonsterTurn,
 }
 
 pub struct State {
     world: World,
     schedule: schedule::Schedule,
-    runstate: RunState,
 }
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
-        self.run_systems(ctx);
+        let mut newrunstate;
+        {
+            let runstate = self.world.resources.get::<RunState>().unwrap();
+            newrunstate = *runstate;
+        }
+
+        match newrunstate {
+            RunState::PreRun => {
+                self.run_systems();
+                newrunstate = RunState::AwaitingInput;
+            }
+            RunState::AwaitingInput => {
+                newrunstate = player_input(self, ctx);
+            }
+            RunState::PlayerTurn => {
+                self.run_systems();
+                newrunstate = RunState::MonsterTurn;
+            }
+            RunState::MonsterTurn => {
+                self.run_systems();
+                newrunstate = RunState::AwaitingInput;
+            }
+        }
+        {
+            let mut runwriter = self.world.resources.get_mut::<RunState>().unwrap();
+            *runwriter = newrunstate;
+        }
 
         draw_map(&mut self.world, ctx);
 
@@ -46,13 +77,8 @@ impl GameState for State {
 }
 
 impl State {
-    fn run_systems(&mut self, ctx: &mut Rltk) {
-        if self.runstate == RunState::Running {
-            self.schedule.execute(&mut self.world);
-            self.runstate = RunState::Paused;
-        } else {
-            self.runstate = player_input(self, ctx);
-        }
+    fn run_systems(&mut self) {
+        self.schedule.execute(&mut self.world);
     }
 }
 
@@ -70,8 +96,16 @@ fn main() {
         schedule: Schedule::builder()
             .add_system(visibility_system::build())
             .add_system(monster_ai_system::build())
+            .flush()
+            .add_system(map_indexing_system::build())
+            .flush()
+            .add_system(melee_combat_system::build())
+            .flush()
+            .add_system(damage_system::build())
+            .flush()
+            .add_system(delete_the_dead_system::build())
+            .flush()
             .build(),
-        runstate: RunState::Running,
     };
     let map = Map::new_map_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
@@ -110,13 +144,20 @@ fn main() {
                 Name {
                     name: format!("{} #{}", &name, i),
                 },
+                BlocksTile {},
+                CombatStats {
+                    max_hp: 16,
+                    hp: 16,
+                    defense: 1,
+                    power: 4,
+                },
             )],
         );
     }
 
     gs.world.resources.insert(map);
 
-    gs.world.insert(
+    let player_entity = gs.world.insert(
         (),
         vec![(
             Position {
@@ -137,8 +178,16 @@ fn main() {
             Name {
                 name: "Player".to_string(),
             },
+            CombatStats {
+                max_hp: 30,
+                hp: 30,
+                defense: 2,
+                power: 5,
+            },
         )],
-    );
+    )[0];
+    gs.world.resources.insert(player_entity);
+    gs.world.resources.insert(RunState::PreRun);
 
     rltk::main_loop(context, gs);
 }

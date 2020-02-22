@@ -12,10 +12,12 @@ pub enum TileType {
 pub struct Map {
     pub tiles: Vec<TileType>,
     pub rooms: Vec<Rect>,
-    pub width: i32,
-    pub height: i32,
+    pub width: usize,
+    pub height: usize,
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
+    pub blocked: Vec<bool>,
+    pub tile_content: Vec<Vec<legion::entity::Entity>>,
 }
 
 impl Map {
@@ -51,6 +53,26 @@ impl Map {
         }
     }
 
+    fn is_exit_valid(&self, x: usize, y: usize) -> bool {
+        if x < 1 || x > (self.width - 1) as usize || y < 1 || y > (self.height - 1) as usize {
+            return false;
+        }
+        let idx = self.xy_idx(x as i32, y as i32);
+        !self.blocked[idx]
+    }
+
+    pub fn populate_blocked(&mut self) {
+        for (i, tile) in self.tiles.iter_mut().enumerate() {
+            self.blocked[i] = *tile == TileType::Wall;
+        }
+    }
+
+    pub fn clear_content_index(&mut self) {
+        for content in self.tile_content.iter_mut() {
+            content.clear();
+        }
+    }
+
     pub fn new_map_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; 80 * 50],
@@ -59,6 +81,8 @@ impl Map {
             height: 50,
             revealed_tiles: vec![false; 80 * 50],
             visible_tiles: vec![false; 80 * 50],
+            blocked: vec![false; 80 * 50],
+            tile_content: vec![Vec::new(); 80 * 50],
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -67,11 +91,11 @@ impl Map {
         let mut rng = RandomNumberGenerator::new();
 
         for _ in 0..MAX_ROOMS {
-            let w = rng.range(MIN_SIZE, MAX_SIZE);
-            let h = rng.range(MIN_SIZE, MAX_SIZE);
-            let x = rng.roll_dice(1, map.width - w - 1) - 1;
-            let y = rng.roll_dice(1, map.height - h - 1) - 1;
-            let new_room = Rect::new(x, y, w, h);
+            let w = rng.range(MIN_SIZE, MAX_SIZE) as usize;
+            let h = rng.range(MIN_SIZE, MAX_SIZE) as usize;
+            let x = rng.roll_dice(1, (map.width - w - 1) as i32) - 1;
+            let y = rng.roll_dice(1, (map.height - h - 1) as i32) - 1;
+            let new_room = Rect::new(x, y, w as i32, h as i32);
             let mut ok = true;
             for other_room in map.rooms.iter() {
                 if new_room.intersect(other_room) {
@@ -110,6 +134,42 @@ impl Algorithm2D for Map {
 impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
         self.tiles[idx as usize] == TileType::Wall
+    }
+
+    fn get_available_exits(&self, idx: usize) -> Vec<(usize, f32)> {
+        let mut exits: Vec<(usize, f32)> = Vec::new();
+        let x = idx % self.width as usize;
+        let y = idx / self.width as usize;
+
+        // Cardinal directions
+        if self.is_exit_valid(x - 1, y) {
+            exits.push((idx - 1, 1.0))
+        };
+        if self.is_exit_valid(x + 1, y) {
+            exits.push((idx + 1, 1.0))
+        };
+        if self.is_exit_valid(x, y - 1) {
+            exits.push((idx - self.width, 1.0))
+        };
+        if self.is_exit_valid(x, y + 1) {
+            exits.push((idx + self.width, 1.0))
+        };
+
+        // Diagonals
+        if self.is_exit_valid(x - 1, y - 1) {
+            exits.push(((idx - self.width) - 1, 1.45));
+        }
+        if self.is_exit_valid(x + 1, y - 1) {
+            exits.push(((idx - self.width) + 1, 1.45));
+        }
+        if self.is_exit_valid(x - 1, y + 1) {
+            exits.push(((idx + self.width) - 1, 1.45));
+        }
+        if self.is_exit_valid(x + 1, y + 1) {
+            exits.push(((idx + self.width) + 1, 1.45));
+        }
+
+        exits
     }
 }
 
