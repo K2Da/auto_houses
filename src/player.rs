@@ -1,6 +1,5 @@
-use super::{Map, Player, Position, RunState, State, TileType};
+use super::*;
 use crate::components::{CombatStats, Viewshed, WantsToMelee};
-use legion::prelude::*;
 use rltk::{Point, Rltk, VirtualKeyCode};
 use std::cmp::{max, min};
 
@@ -12,7 +11,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, gs: &mut State) {
     schedule.execute(&mut gs.world);
 }
 
-fn move_player_system(delta_x: i32, delta_y: i32) -> Box<dyn legion::schedule::Schedulable> {
+fn move_player_system(delta_x: i32, delta_y: i32) -> SystemBox {
     SystemBuilder::<()>::new("MovePlayerSystem")
         .with_query(<(Write<Position>, Write<Viewshed>)>::query().filter(component::<Player>()))
         .read_component::<CombatStats>()
@@ -25,7 +24,6 @@ fn move_player_system(delta_x: i32, delta_y: i32) -> Box<dyn legion::schedule::S
 
                 for potential_target in map.tile_content[destination_idx].iter() {
                     if let Some(_) = world.get_component::<CombatStats>(*potential_target) {
-                        println!("add wants");
                         commands.add_component(
                             player,
                             WantsToMelee {

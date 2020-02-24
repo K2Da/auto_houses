@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn build() -> Box<dyn legion::schedule::Schedulable> {
+pub fn build() -> SystemBox {
     SystemBuilder::<()>::new("MapIndexingSystem")
         .with_query(<(Read<Position>, TryRead<BlocksTile>)>::query())
         .write_resource::<Map>()

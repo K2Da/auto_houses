@@ -12,6 +12,9 @@ use crate::components::Monster;
 use player::*;
 mod damage_system;
 mod delete_the_dead_system;
+mod gamelog;
+use gamelog::*;
+mod gui;
 mod map_indexing_system;
 mod melee_combat_system;
 mod monster_ai_system;
@@ -29,6 +32,8 @@ pub struct State {
     world: World,
     schedule: schedule::Schedule,
 }
+
+type SystemBox = Box<dyn legion::schedule::Schedulable>;
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
@@ -73,6 +78,7 @@ impl GameState for State {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph)
             }
         }
+        gui::draw_ui(&self.world, ctx);
     }
 }
 
@@ -186,6 +192,11 @@ fn main() {
             },
         )],
     )[0];
+
+    gs.world.resources.insert(GameLog {
+        entries: vec!["Welcome to Rusty Roguelike".to_string()],
+    });
+
     gs.world.resources.insert(player_entity);
     gs.world.resources.insert(RunState::PreRun);
 

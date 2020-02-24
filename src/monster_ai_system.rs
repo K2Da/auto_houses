@@ -1,7 +1,7 @@
 use super::*;
 use rltk::Point;
 
-pub fn build() -> Box<dyn legion::schedule::Schedulable> {
+pub fn build() -> SystemBox {
     SystemBuilder::<()>::new("MonsterAISystem")
         .with_query(
             <(Write<Viewshed>, Write<Position>, Read<Name>)>::query()
