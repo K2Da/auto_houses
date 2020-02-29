@@ -14,13 +14,12 @@ pub struct Renderable {
     pub glyph: u8,
     pub fg: RGB,
     pub bg: RGB,
+    pub render_order: i32,
 }
 
-#[derive(Debug)]
-pub struct Player {}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Monster {}
+// TryRead等があるのでtagに変えれない
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Player;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Viewshed {
@@ -35,7 +34,7 @@ pub struct Name {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct BlocksTile {}
+pub struct BlocksTile;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CombatStats {
@@ -53,4 +52,30 @@ pub struct WantsToMelee {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SufferDamage {
     pub amount: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Potion {
+    pub heal_amount: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InBackpack {
+    pub owner: Entity,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WantsToPickupItem {
+    pub collected_by: Entity,
+    pub item: Entity,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WantsToDrinkPotion {
+    pub potion: Entity,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WantsToDropItem {
+    pub item: Entity,
 }

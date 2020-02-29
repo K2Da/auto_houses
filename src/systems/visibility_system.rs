@@ -7,7 +7,7 @@ pub fn build() -> SystemBox {
         .write_resource::<Map>()
         .build(move |_commands, world, map, query| {
             let map: &mut Map = map;
-            for (mut viewshed, pos, player) in query.iter(&mut *world) {
+            for (mut viewshed, pos, player) in query.iter(world) {
                 if viewshed.dirty {
                     viewshed.dirty = false;
                     viewshed.visible_tiles.clear();

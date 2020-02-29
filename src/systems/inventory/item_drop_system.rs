@@ -1,0 +1,37 @@
+use super::super::*;
+
+pub fn build() -> SystemBox {
+    SystemBuilder::<()>::new("ItemDropSystem")
+        .with_query(<Read<WantsToDropItem>>::query())
+        .read_resource::<Entity>()
+        .write_resource::<GameLog>()
+        .read_component::<Name>()
+        .read_component::<Position>()
+        .write_component::<InBackpack>()
+        .build(move |commands, world, (player_entity, gamelog), query| {
+            let player_entity: &Entity = player_entity;
+
+            for (entity, to_drop) in query.iter_entities(world) {
+                let mut dropper_pos: Position = Position { x: 0, y: 0 };
+                {
+                    let dropped_pos = world.get_component::<Position>(entity).unwrap();
+                    dropper_pos.x = dropped_pos.x;
+                    dropper_pos.y = dropped_pos.y;
+                }
+                commands.add_component(
+                    to_drop.item,
+                    Position {
+                        x: dropper_pos.x,
+                        y: dropper_pos.y,
+                    },
+                );
+                commands.remove_component::<InBackpack>(to_drop.item);
+
+                if entity == *player_entity {
+                    let name = world.get_component::<Name>(to_drop.item).unwrap();
+                    gamelog.entries.push(format!("You drop the {}", name.name));
+                }
+                commands.remove_component::<WantsToDropItem>(entity);
+            }
+        })
+}

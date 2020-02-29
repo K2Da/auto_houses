@@ -4,8 +4,7 @@ use rltk::Point;
 pub fn build() -> SystemBox {
     SystemBuilder::<()>::new("MonsterAISystem")
         .with_query(
-            <(Write<Viewshed>, Write<Position>, Read<Name>)>::query()
-                .filter(component::<Monster>()),
+            <(Write<Viewshed>, Write<Position>, Read<Name>)>::query().filter(tag::<Monster>()),
         )
         .write_resource::<Map>()
         .read_resource::<Point>()
