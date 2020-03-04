@@ -34,7 +34,7 @@ pub fn build_schedules() -> Schedules {
             .flush()
             .add_system(inventory::inventory_system::build())
             .flush()
-            .add_system(inventory::potion_use_system::build())
+            .add_system(inventory::item_use_system::build())
             .flush()
             .add_system(inventory::item_drop_system::build())
             .flush()
@@ -44,4 +44,14 @@ pub fn build_schedules() -> Schedules {
             get_item: player::get_item_system::schedule(),
         },
     }
+}
+
+fn get_name(world: &legion::system::SubWorld, entity: Entity) -> String {
+    world.get_component::<Name>(entity).unwrap().name.to_owned()
+}
+
+fn retain_tiles(map: &Map, tiles: &mut Vec<rltk::Point>) {
+    tiles.retain(|p| {
+        p.x > 0 && p.x < map.width as i32 - 1 && p.y > 0 && p.y < map.height as i32 - 1
+    });
 }

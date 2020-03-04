@@ -1,15 +1,13 @@
 use legion::entity::Entity;
 use rltk::RGB;
 
-// TODO: dataのないcomponentはタグに変えるべき？
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Renderable {
     pub glyph: u8,
     pub fg: RGB,
@@ -18,7 +16,7 @@ pub struct Renderable {
 }
 
 // TryRead等があるのでtagに変えれない
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Player;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -49,13 +47,15 @@ pub struct WantsToMelee {
     pub target: Entity,
 }
 
+// オリジナルではentityに紐づくダメージの配列だが、同じ実装ができないので別entityとする
 #[derive(Clone, Debug, PartialEq)]
 pub struct SufferDamage {
+    pub victim: Entity,
     pub amount: i32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Potion {
+pub struct ProvidesHealing {
     pub heal_amount: i32,
 }
 
@@ -71,11 +71,32 @@ pub struct WantsToPickupItem {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct WantsToDrinkPotion {
-    pub potion: Entity,
+pub struct WantsToUseItem {
+    pub item: Entity,
+    pub target: Option<rltk::Point>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct WantsToDropItem {
     pub item: Entity,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Ranged {
+    pub range: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InflictsDamage {
+    pub damage: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AreaOfEffect {
+    pub radius: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Confusion {
+    pub turns: i32,
 }

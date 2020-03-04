@@ -7,7 +7,6 @@ pub fn build() -> SystemBox {
         .write_resource::<GameLog>()
         .read_component::<Name>()
         .read_component::<Position>()
-        .write_component::<InBackpack>()
         .build(move |commands, world, (player_entity, gamelog), query| {
             let player_entity: &Entity = player_entity;
 
@@ -28,8 +27,9 @@ pub fn build() -> SystemBox {
                 commands.remove_component::<InBackpack>(to_drop.item);
 
                 if entity == *player_entity {
-                    let name = world.get_component::<Name>(to_drop.item).unwrap();
-                    gamelog.entries.push(format!("You drop the {}", name.name));
+                    gamelog
+                        .entries
+                        .push(format!("You drop the {}", get_name(world, to_drop.item)));
                 }
                 commands.remove_component::<WantsToDropItem>(entity);
             }

@@ -9,7 +9,6 @@ fn build() -> SystemBox {
     SystemBuilder::<()>::new("MovePlayerSystem")
         .with_query(<(Write<Position>, Write<Viewshed>)>::query().filter(component::<Player>()))
         .read_component::<CombatStats>()
-        .write_component::<WantsToMelee>()
         .read_resource::<Map>()
         .write_resource::<Point>()
         .write_resource::<WantsToMove>()

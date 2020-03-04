@@ -10,8 +10,8 @@ pub fn build() -> SystemBox {
                 if stats.hp < 1 {
                     match player {
                         None => {
-                            let victim_name = world.get_component::<Name>(entity).unwrap();
-                            log.entries.push(format!("{} is dead", victim_name.name));
+                            log.entries
+                                .push(format!("{} is dead", get_name(world, entity)));
                             commands.delete(entity)
                         }
                         Some(_) => log.entries.push("You are dead".to_string()),

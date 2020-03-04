@@ -13,12 +13,7 @@ pub fn build() -> SystemBox {
                     viewshed.visible_tiles.clear();
                     viewshed.visible_tiles =
                         field_of_view(Point::new(pos.x, pos.y), viewshed.range, &*map);
-                    viewshed.visible_tiles.retain(|p| {
-                        p.x > 0
-                            && p.x < map.width as i32 - 1
-                            && p.y > 0
-                            && p.y < map.height as i32 - 1
-                    });
+                    retain_tiles(&map, &mut viewshed.visible_tiles);
 
                     if player.is_none() {
                         continue;

@@ -5,9 +5,7 @@ pub fn build() -> SystemBox {
         .with_query(<Read<WantsToPickupItem>>::query())
         .read_resource::<Entity>()
         .write_resource::<GameLog>()
-        .write_component::<Position>()
         .read_component::<Name>()
-        .write_component::<InBackpack>()
         .build(move |commands, world, (player_entity, gamelog), query| {
             let player_entity: &Entity = player_entity;
 

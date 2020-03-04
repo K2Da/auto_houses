@@ -26,6 +26,7 @@ pub enum RunState {
     MonsterTurn,
     ShowInventory,
     ShowDropItem,
+    ShowTargeting { range: i32, item: Entity },
 }
 
 pub struct State {
@@ -85,14 +86,25 @@ impl GameState for State {
                     gui::ItemMenuResult::Selected => {
                         let item_entity = result.1.unwrap();
                         let player = *self.world.resources.get::<Entity>().unwrap();
-                        self.world.add_component(
-                            player,
-                            WantsToDrinkPotion {
-                                potion: item_entity,
-                            },
-                        );
-                        self.run_systems();
-                        newrunstate = RunState::AwaitingInput;
+                        let is_item_ranged = self
+                            .world
+                            .get_component::<Ranged>(item_entity)
+                            .map(|i| (*i).clone());
+                        if let Some(is_item_ranged) = is_item_ranged {
+                            newrunstate = RunState::ShowTargeting {
+                                range: is_item_ranged.range,
+                                item: item_entity,
+                            }
+                        } else {
+                            self.world.add_component(
+                                player,
+                                WantsToUseItem {
+                                    item: item_entity,
+                                    target: None,
+                                },
+                            );
+                            newrunstate = RunState::PlayerTurn;
+                        }
                     }
                 }
             }
@@ -106,8 +118,25 @@ impl GameState for State {
                         let player = *self.world.resources.get::<Entity>().unwrap();
                         self.world
                             .add_component(player, WantsToDropItem { item: item_entity });
-                        self.run_systems();
-                        newrunstate = RunState::AwaitingInput;
+                        newrunstate = RunState::PlayerTurn;
+                    }
+                }
+            }
+            RunState::ShowTargeting { range, item } => {
+                let result = gui::ranged_target(self, ctx, range);
+                match result.0 {
+                    gui::ItemMenuResult::Cancel => newrunstate = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let player = *self.world.resources.get::<Entity>().unwrap();
+                        self.world.add_component(
+                            player,
+                            WantsToUseItem {
+                                item,
+                                target: result.1,
+                            },
+                        );
+                        newrunstate = RunState::PlayerTurn;
                     }
                 }
             }
@@ -163,24 +192,7 @@ fn main() {
     gs.world.resources.insert(RunState::PreRun);
     gs.world.resources.insert(WantsToMove { x: 0, y: 0 });
 
-    gs.world.insert(
-        (Item,),
-        vec![(
-            Renderable {
-                glyph: rltk::to_cp437('¡'),
-                fg: RGB::named(rltk::MAGENTA),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 2,
-            },
-            Name {
-                name: "Health Potion".to_string(),
-            },
-            Potion { heal_amount: 8 },
-            InBackpack {
-                owner: player_entity,
-            },
-        )],
-    );
+    spawner::debug_all_item(&mut gs.world, player_x, player_y);
 
     rltk::main_loop(context, gs);
 }

@@ -9,33 +9,15 @@ pub fn spawn_room(world: &mut World, room: &Rect) {
 
     {
         let mut rng = world.resources.get_mut::<RandomNumberGenerator>().unwrap();
-        let num_monsters = rng.roll_dice(1, MAX_MONSTERS + 2) - 3;
-        let num_items = rng.roll_dice(1, MAX_ITEMS + 2) - 3;
 
+        let num_monsters = rng.roll_dice(1, MAX_MONSTERS + 2) - 3;
         for _ in 0..num_monsters {
-            let mut added = false;
-            while !added {
-                let x = (room.x1 + rng.roll_dice(1, i32::abs(room.x2 - room.x1))) as usize;
-                let y = (room.y1 + rng.roll_dice(1, i32::abs(room.y2 - room.y1))) as usize;
-                let idx = (y * MAPWIDTH) + x;
-                if !monster_spawn_points.contains(&idx) {
-                    monster_spawn_points.push(idx);
-                    added = true;
-                }
-            }
+            spawn(room, &mut monster_spawn_points, &mut rng)
         }
 
+        let num_items = rng.roll_dice(1, MAX_ITEMS + 2) - 3;
         for _ in 0..num_items {
-            let mut added = false;
-            while !added {
-                let x = (room.x1 + rng.roll_dice(1, i32::abs(room.x2 - room.x1))) as usize;
-                let y = (room.y1 + rng.roll_dice(1, i32::abs(room.y2 - room.y1))) as usize;
-                let idx = (y * MAPWIDTH) + x;
-                if !item_spawn_points.contains(&idx) {
-                    item_spawn_points.push(idx);
-                    added = true;
-                }
-            }
+            spawn(room, &mut item_spawn_points, &mut rng);
         }
     }
 
@@ -48,7 +30,20 @@ pub fn spawn_room(world: &mut World, room: &Rect) {
     for idx in item_spawn_points.iter() {
         let x = *idx % MAPWIDTH;
         let y = *idx / MAPWIDTH;
-        health_potion(world, x as i32, y as i32);
+        random_item(world, x as i32, y as i32);
+    }
+}
+
+fn spawn(room: &Rect, spawn_points: &mut Vec<usize>, rng: &mut RandomNumberGenerator) -> () {
+    let mut added = false;
+    while !added {
+        let x = (room.x1 + rng.roll_dice(1, i32::abs(room.x2 - room.x1))) as usize;
+        let y = (room.y1 + rng.roll_dice(1, i32::abs(room.y2 - room.y1))) as usize;
+        let idx = (y * MAPWIDTH) + x;
+        if !spawn_points.contains(&idx) {
+            spawn_points.push(idx);
+            added = true;
+        }
     }
 }
 
@@ -135,9 +130,31 @@ fn monster<S: ToString>(world: &mut World, x: i32, y: i32, glyph: u8, name: S) {
     );
 }
 
+fn random_item(world: &mut World, x: i32, y: i32) {
+    let roll: i32;
+    {
+        let mut rng = world.resources.get_mut::<RandomNumberGenerator>().unwrap();
+        roll = rng.roll_dice(1, 4);
+    }
+
+    match roll {
+        1 => health_potion(world, x, y),
+        2 => fireball_scroll(world, x, y),
+        3 => confusion_scroll(world, x, y),
+        _ => magic_missile_scroll(world, x, y),
+    }
+}
+
+pub fn debug_all_item(world: &mut World, x: i32, y: i32) {
+    health_potion(world, x, y);
+    magic_missile_scroll(world, x, y);
+    fireball_scroll(world, x, y);
+    confusion_scroll(world, x, y);
+}
+
 fn health_potion(world: &mut World, x: i32, y: i32) {
     world.insert(
-        (Item,),
+        (Item, Consumable),
         vec![(
             Position { x, y },
             Renderable {
@@ -149,7 +166,68 @@ fn health_potion(world: &mut World, x: i32, y: i32) {
             Name {
                 name: "Health Potion".to_string(),
             },
-            Potion { heal_amount: 8 },
+            ProvidesHealing { heal_amount: 8 },
+        )],
+    );
+}
+
+fn magic_missile_scroll(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (Item, Consumable),
+        vec![(
+            Position { x, y },
+            Renderable {
+                glyph: rltk::to_cp437(')'),
+                fg: RGB::named(rltk::CYAN),
+                bg: RGB::named(rltk::BLACK),
+                render_order: 2,
+            },
+            Name {
+                name: "Magic Missile Scroll".to_string(),
+            },
+            Ranged { range: 6 },
+            InflictsDamage { damage: 8 },
+        )],
+    );
+}
+
+fn fireball_scroll(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (Item, Consumable),
+        vec![(
+            Position { x, y },
+            Renderable {
+                glyph: rltk::to_cp437(')'),
+                fg: RGB::named(rltk::ORANGE),
+                bg: RGB::named(rltk::BLACK),
+                render_order: 2,
+            },
+            Name {
+                name: "Fireball Scroll".to_string(),
+            },
+            Ranged { range: 6 },
+            InflictsDamage { damage: 20 },
+            AreaOfEffect { radius: 3 },
+        )],
+    );
+}
+
+fn confusion_scroll(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (Item, Consumable),
+        vec![(
+            Position { x, y },
+            Renderable {
+                glyph: rltk::to_cp437(')'),
+                fg: RGB::named(rltk::PINK),
+                bg: RGB::named(rltk::BLACK),
+                render_order: 2,
+            },
+            Name {
+                name: "Confusion Scroll".to_string(),
+            },
+            Ranged { range: 6 },
+            Confusion { turns: 4 },
         )],
     );
 }
