@@ -9,11 +9,11 @@ pub fn build() -> SystemBox {
         .build(move |commands, world, log, query| {
             for (entity, (wants_melee, name, stats)) in query.iter_entities(world) {
                 if stats.hp > 0 {
-                    let target = wants_melee.target;
-                    let target_stats = world.get_component::<CombatStats>(target).unwrap();
+                    let target = wants_melee.target.clone();
+                    let target_stats = world.get_component::<CombatStats>(target.entity()).unwrap();
 
                     if target_stats.hp > 0 {
-                        let target_name = get_name(world, target);
+                        let target_name = get_name(world, target.entity());
                         let damage = i32::max(0, stats.power - target_stats.defense);
 
                         if damage == 0 {
@@ -24,7 +24,7 @@ pub fn build() -> SystemBox {
                                 "{} hits {}, for {} hp.",
                                 &name.name, target_name, damage
                             ));
-                            SufferDamage::new_damage(commands, target, damage);
+                            SufferDamage::new_damage(commands, target.entity(), damage);
                         }
                     }
                 }

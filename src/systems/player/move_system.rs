@@ -1,11 +1,7 @@
 use super::super::*;
 use std::cmp::{max, min};
 
-pub fn schedule() -> legion::schedule::Schedule {
-    Schedule::builder().add_system(build()).flush().build()
-}
-
-fn build() -> SystemBox {
+pub fn build() -> SystemBox {
     SystemBuilder::<()>::new("MovePlayerSystem")
         .with_query(<(Write<Position>, Write<Viewshed>)>::query().filter(component::<Player>()))
         .read_component::<CombatStats>()
@@ -21,7 +17,7 @@ fn build() -> SystemBox {
                         commands.add_component(
                             player,
                             WantsToMelee {
-                                target: *potential_target,
+                                target: EntityHolder::new(*potential_target),
                             },
                         );
                         return;

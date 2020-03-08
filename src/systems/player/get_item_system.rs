@@ -1,10 +1,6 @@
 use super::super::*;
 
-pub fn schedule() -> legion::schedule::Schedule {
-    Schedule::builder().add_system(build()).flush().build()
-}
-
-fn build() -> SystemBox {
+pub fn build() -> SystemBox {
     SystemBuilder::<()>::new("GetItemSystem")
         .with_query(<Read<Position>>::query().filter(tag::<Item>()))
         .read_resource::<Point>()
@@ -28,8 +24,8 @@ fn build() -> SystemBox {
                         commands.insert(
                             (),
                             vec![(WantsToPickupItem {
-                                collected_by: *player_entity,
-                                item,
+                                collected_by: EntityHolder::new(*player_entity),
+                                item: EntityHolder::new(item),
                             },)],
                         );
                     }

@@ -49,7 +49,7 @@ fn spawn(room: &Rect, spawn_points: &mut Vec<usize>, rng: &mut RandomNumberGener
 
 pub fn player(world: &mut World, player_x: i32, player_y: i32) -> Entity {
     world.insert(
-        (),
+        (SerializeMe,),
         vec![(
             Position {
                 x: player_x,
@@ -102,7 +102,7 @@ fn goblin(world: &mut World, x: i32, y: i32) {
 
 fn monster<S: ToString>(world: &mut World, x: i32, y: i32, glyph: u8, name: S) {
     world.insert(
-        (Monster,),
+        (SerializeMe, Monster),
         vec![(
             Position { x, y },
             Renderable {
@@ -154,7 +154,7 @@ pub fn debug_all_item(world: &mut World, x: i32, y: i32) {
 
 fn health_potion(world: &mut World, x: i32, y: i32) {
     world.insert(
-        (Item, Consumable),
+        (SerializeMe, Item, Consumable),
         vec![(
             Position { x, y },
             Renderable {
@@ -173,7 +173,7 @@ fn health_potion(world: &mut World, x: i32, y: i32) {
 
 fn magic_missile_scroll(world: &mut World, x: i32, y: i32) {
     world.insert(
-        (Item, Consumable),
+        (SerializeMe, Item, Consumable),
         vec![(
             Position { x, y },
             Renderable {
@@ -193,7 +193,7 @@ fn magic_missile_scroll(world: &mut World, x: i32, y: i32) {
 
 fn fireball_scroll(world: &mut World, x: i32, y: i32) {
     world.insert(
-        (Item, Consumable),
+        (SerializeMe, Item, Consumable),
         vec![(
             Position { x, y },
             Renderable {
@@ -214,7 +214,7 @@ fn fireball_scroll(world: &mut World, x: i32, y: i32) {
 
 fn confusion_scroll(world: &mut World, x: i32, y: i32) {
     world.insert(
-        (Item, Consumable),
+        (SerializeMe, Item, Consumable),
         vec![(
             Position { x, y },
             Renderable {

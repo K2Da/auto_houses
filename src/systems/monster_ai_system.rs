@@ -40,7 +40,7 @@ pub fn build() -> SystemBox {
                             commands.add_component(
                                 entity,
                                 WantsToMelee {
-                                    target: *player_entity,
+                                    target: EntityHolder::new(*player_entity),
                                 },
                             );
                         } else if viewshed.visible_tiles.contains(player_pos) {

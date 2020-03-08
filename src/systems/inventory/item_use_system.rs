@@ -18,7 +18,7 @@ pub fn build() -> SystemBox {
 
                 for (entity, use_item) in query.iter_entities(world) {
                     let map: &Map = map;
-                    let item = use_item.item;
+                    let item = use_item.item.entity();
                     let item_name = get_name(world, item).to_owned();
                     let mut used_item = true;
 

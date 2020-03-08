@@ -10,18 +10,21 @@ pub fn build() -> SystemBox {
             let player_entity: &Entity = player_entity;
 
             for (entity, pickup) in query.iter_entities(world) {
-                commands.remove_component::<Position>(pickup.item);
+                commands.remove_component::<Position>(pickup.item.entity());
                 commands.add_component(
-                    pickup.item,
+                    pickup.item.entity(),
                     InBackpack {
-                        owner: pickup.collected_by,
+                        owner: pickup.collected_by.clone(),
                     },
                 );
 
-                if pickup.collected_by == *player_entity {
+                if pickup.collected_by.entity() == *player_entity {
                     gamelog.entries.push(format!(
                         "You pick up the {}.",
-                        world.get_component::<Name>(pickup.item).unwrap().name
+                        world
+                            .get_component::<Name>(pickup.item.entity())
+                            .unwrap()
+                            .name
                     ));
                 }
                 commands.delete(entity);

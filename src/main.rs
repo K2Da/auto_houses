@@ -5,6 +5,7 @@ mod rect;
 use rect::Rect;
 mod ecs;
 use ecs::components::*;
+use ecs::entity_holder::*;
 use ecs::resources::*;
 use ecs::tags::*;
 mod map;
@@ -16,6 +17,8 @@ use gamelog::*;
 mod gui;
 mod spawner;
 mod systems;
+use crate::systems::save::save_system::delete_save;
+use systems::save::SaveData;
 use systems::Schedules;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -26,7 +29,14 @@ pub enum RunState {
     MonsterTurn,
     ShowInventory,
     ShowDropItem,
-    ShowTargeting { range: i32, item: Entity },
+    ShowTargeting {
+        range: i32,
+        item: Entity,
+    },
+    MainMenu {
+        menu_selection: gui::MainMenuSelection,
+    },
+    SaveGame,
 }
 
 pub struct State {
@@ -38,28 +48,32 @@ type SystemBox = Box<dyn legion::schedule::Schedulable>;
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
-        ctx.cls();
-
-        draw_map(&mut self.world, ctx);
-        {
-            let map = self.world.resources.get::<Map>().unwrap();
-            let mut data = <(Read<Position>, Read<Renderable>)>::query()
-                .iter_immutable(&self.world)
-                .collect::<Vec<_>>();
-            data.sort_by(|a, b| b.1.render_order.cmp(&a.1.render_order));
-            for (pos, render) in data.iter() {
-                let idx = map.xy_idx(pos.x, pos.y);
-                if map.visible_tiles[idx] {
-                    ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph)
-                }
-            }
-            gui::draw_ui(&self.world, ctx);
-        }
-
         let mut newrunstate;
         {
             let runstate = self.world.resources.get::<RunState>().unwrap();
             newrunstate = *runstate;
+        }
+        ctx.cls();
+
+        match newrunstate {
+            RunState::MainMenu { .. } => {}
+            _ => {
+                draw_map(&mut self.world, ctx);
+                {
+                    let map = self.world.resources.get::<Map>().unwrap();
+                    let mut data = <(Read<Position>, Read<Renderable>)>::query()
+                        .iter_immutable(&self.world)
+                        .collect::<Vec<_>>();
+                    data.sort_by(|a, b| b.1.render_order.cmp(&a.1.render_order));
+                    for (pos, render) in data.iter() {
+                        let idx = map.xy_idx(pos.x, pos.y);
+                        if map.visible_tiles[idx] {
+                            ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph)
+                        }
+                    }
+                    gui::draw_ui(&self.world, ctx);
+                }
+            }
         }
 
         match newrunstate {
@@ -99,7 +113,7 @@ impl GameState for State {
                             self.world.add_component(
                                 player,
                                 WantsToUseItem {
-                                    item: item_entity,
+                                    item: EntityHolder::new(item_entity),
                                     target: None,
                                 },
                             );
@@ -116,8 +130,12 @@ impl GameState for State {
                     gui::ItemMenuResult::Selected => {
                         let item_entity = result.1.unwrap();
                         let player = *self.world.resources.get::<Entity>().unwrap();
-                        self.world
-                            .add_component(player, WantsToDropItem { item: item_entity });
+                        self.world.add_component(
+                            player,
+                            WantsToDropItem {
+                                item: EntityHolder::new(item_entity),
+                            },
+                        );
                         newrunstate = RunState::PlayerTurn;
                     }
                 }
@@ -132,13 +150,40 @@ impl GameState for State {
                         self.world.add_component(
                             player,
                             WantsToUseItem {
-                                item,
+                                item: EntityHolder::new(item),
                                 target: result.1,
                             },
                         );
                         newrunstate = RunState::PlayerTurn;
                     }
                 }
+            }
+            RunState::MainMenu { .. } => {
+                let result = gui::main_menu(self, ctx);
+                match result {
+                    gui::MainMenuResult::NoSelection { selected } => {
+                        newrunstate = RunState::MainMenu {
+                            menu_selection: selected,
+                        }
+                    }
+                    gui::MainMenuResult::Selected { selected } => match selected {
+                        gui::MainMenuSelection::NewGame => newrunstate = RunState::PreRun,
+                        gui::MainMenuSelection::LoadGame => {
+                            self.schedules.menu.load.execute(&mut self.world);
+                            newrunstate = RunState::AwaitingInput;
+                            delete_save();
+                        }
+                        gui::MainMenuSelection::Quit => {
+                            ::std::process::exit(0);
+                        }
+                    },
+                }
+            }
+            RunState::SaveGame => {
+                self.schedules.menu.save.execute(&mut self.world);
+                newrunstate = RunState::MainMenu {
+                    menu_selection: gui::MainMenuSelection::LoadGame,
+                };
             }
         }
         {
@@ -189,8 +234,11 @@ fn main() {
     });
 
     gs.world.resources.insert(player_entity);
-    gs.world.resources.insert(RunState::PreRun);
+    gs.world.resources.insert(RunState::MainMenu {
+        menu_selection: gui::MainMenuSelection::NewGame,
+    });
     gs.world.resources.insert(WantsToMove { x: 0, y: 0 });
+    gs.world.resources.insert(SaveData::default());
 
     spawner::debug_all_item(&mut gs.world, player_x, player_y);
 
