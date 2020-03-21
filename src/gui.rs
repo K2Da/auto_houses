@@ -40,6 +40,10 @@ pub fn draw_ui(world: &World, ctx: &mut Rltk) {
     let mouse_pos = ctx.mouse_pos();
     ctx.set_bg(mouse_pos.0, mouse_pos.1, c(MAGENTA));
     draw_tooltips(world, ctx);
+
+    let map = world.resources.get::<Map>().unwrap();
+    let depth = format!("Depth: {}", map.depth);
+    ctx.print_color(2, 43, c(YELLOW), c(BLACK), &depth);
 }
 
 fn draw_tooltips(world: &World, ctx: &mut Rltk) {
