@@ -11,6 +11,38 @@ fn try_move_player(delta_x: i32, delta_y: i32, gs: &mut State) {
     gs.schedules.player.player_move.execute(&mut gs.world);
 }
 
+fn skip_turn(gs: &mut State) -> RunState {
+    let player_entity = gs.world.resources.get::<Entity>().unwrap().clone();
+    let mut can_heal = true;
+
+    {
+        let viewshed = gs.world.get_component::<Viewshed>(player_entity).unwrap();
+        let world_map = gs.world.resources.get::<Map>().unwrap();
+
+        for tile in viewshed.visible_tiles.iter() {
+            let idx = world_map.xy_idx(tile.x, tile.y);
+            for entity_id in world_map.tile_content[idx].iter() {
+                println!("can?");
+                match gs.world.get_tag::<Monster>(*entity_id) {
+                    None => {}
+                    Some(_) => can_heal = false,
+                }
+            }
+        }
+    }
+
+    if can_heal {
+        let mut player_hp = gs
+            .world
+            .get_component_mut::<CombatStats>(player_entity)
+            .unwrap();
+
+        player_hp.hp = i32::min(player_hp.hp + 1, player_hp.max_hp);
+    }
+
+    RunState::PlayerTurn
+}
+
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
     // Player movement
     match ctx.key {
@@ -36,6 +68,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::I => return RunState::ShowInventory,
             VirtualKeyCode::D => return RunState::ShowDropItem,
             VirtualKeyCode::Escape => return RunState::SaveGame,
+            VirtualKeyCode::Numpad5 | VirtualKeyCode::Space => return skip_turn(gs),
             VirtualKeyCode::Period => {
                 if try_next_level(gs) {
                     return RunState::NextLevel;

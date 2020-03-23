@@ -15,6 +15,8 @@ use player::*;
 mod gamelog;
 use gamelog::*;
 mod gui;
+mod random_table;
+use random_table::*;
 mod spawner;
 mod systems;
 use crate::systems::save::save_system::delete_save;
@@ -224,15 +226,17 @@ impl State {
 
         // Build a new map and place the player
         let worldmap;
+        let current_depth;
         {
             let mut map = self.world.resources.get_mut::<Map>().unwrap();
+            current_depth = map.depth;
             *map = Map::new_map_rooms_and_corridors(map.depth + 1);
             worldmap = map.clone();
         }
 
         // Spawn bad guys
         for room in worldmap.rooms.iter().skip(1) {
-            spawner::spawn_room(&mut self.world, room);
+            spawner::spawn_room(&mut self.world, room, current_depth + 1);
         }
 
         // Place the player and update resources
@@ -302,7 +306,7 @@ fn main() {
     gs.world.resources.insert(Point::new(player_x, player_y));
 
     for room in map.rooms.iter().skip(1) {
-        spawner::spawn_room(&mut gs.world, room);
+        spawner::spawn_room(&mut gs.world, room, 1);
     }
 
     gs.world.resources.insert(map);
