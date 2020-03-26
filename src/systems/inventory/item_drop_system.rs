@@ -19,15 +19,12 @@ pub fn build() -> SystemBox {
                 }
                 commands.add_component(
                     to_drop.item.entity(),
-                    Position {
-                        x: dropper_pos.x,
-                        y: dropper_pos.y,
-                    },
+                    Position::new(dropper_pos.x, dropper_pos.y),
                 );
                 commands.remove_component::<InBackpack>(to_drop.item.entity());
 
                 if entity == *player_entity {
-                    gamelog.entries.push(format!(
+                    gamelog.push(format!(
                         "You drop the {}",
                         get_name(world, to_drop.item.entity())
                     ));

@@ -14,12 +14,7 @@ pub fn build() -> SystemBox {
 
                 for potential_target in map.tile_content[destination_idx].iter() {
                     if let Some(_) = world.get_component::<CombatStats>(*potential_target) {
-                        commands.add_component(
-                            player,
-                            WantsToMelee {
-                                target: EntityHolder::new(*potential_target),
-                            },
-                        );
+                        commands.add_component(player, WantsToMelee::new(*potential_target));
                         return;
                     }
                 }

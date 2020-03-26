@@ -19,7 +19,7 @@ pub fn build() -> SystemBox {
                 );
 
                 if pickup.collected_by.entity() == *player_entity {
-                    gamelog.entries.push(format!(
+                    gamelog.push(format!(
                         "You pick up the {}.",
                         world
                             .get_component::<Name>(pickup.item.entity())

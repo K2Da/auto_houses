@@ -1,9 +1,11 @@
+use super::gui::c;
 use super::*;
+use rltk::prelude::{BLACK, CYAN, MAGENTA, ORANGE, PINK, RED, YELLOW};
 use std::collections::hash_map::HashMap;
 
 const MAX_MONSTERS: i32 = 4;
 
-pub fn spawn_room(world: &mut World, room: &Rect, map_depth: i32) {
+pub fn spawn_room(world: &mut World, room: &rect::Rect, map_depth: i32) {
     let spawn_table = room_table(map_depth);
     let mut spawn_points: HashMap<usize, String> = HashMap::new();
 
@@ -29,51 +31,50 @@ pub fn spawn_room(world: &mut World, room: &Rect, map_depth: i32) {
         }
     }
 
-    for spawn in spawn_points.iter() {
-        let x = (*spawn.0 % MAPWIDTH) as i32;
-        let y = (*spawn.0 / MAPWIDTH) as i32;
+    for (idx, spawned) in spawn_points.iter() {
+        let x = (*idx % MAPWIDTH) as i32;
+        let y = (*idx / MAPWIDTH) as i32;
 
-        match spawn.1.as_ref() {
+        match spawned.as_ref() {
             "Goblin" => goblin(world, x, y),
             "Orc" => orc(world, x, y),
             "Health Potion" => health_potion(world, x, y),
             "Fireball Scroll" => fireball_scroll(world, x, y),
             "Confusion Scroll" => confusion_scroll(world, x, y),
             "Magic Missile Scroll" => magic_missile_scroll(world, x, y),
+            "Dagger" => dagger(world, x, y),
+            "Shield" => shield(world, x, y),
+            "Longsword" => longsword(world, x, y),
+            "Tower Shield" => tower_shield(world, x, y),
             _ => {}
         }
     }
+}
+
+fn room_table(map_depth: i32) -> RandomTable {
+    RandomTable::new()
+        .add("Goblin", 10)
+        .add("Orc", 1 + map_depth)
+        .add("Health Potion", 7)
+        .add("Fireball Scroll", 2 + map_depth)
+        .add("Confusion Scroll", 2 + map_depth)
+        .add("Magic Missile Scroll", 4)
+        .add("Dagger", 3)
+        .add("Shield", 3)
+        .add("Longsword", map_depth - 1)
+        .add("Tower Shield", map_depth - 1)
 }
 
 pub fn player(world: &mut World, player_x: i32, player_y: i32) -> Entity {
     world.insert(
         (SerializeMe,),
         vec![(
-            Position {
-                x: player_x,
-                y: player_y,
-            },
-            Renderable {
-                glyph: rltk::to_cp437('@'),
-                fg: RGB::named(rltk::YELLOW),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 0,
-            },
-            Player {},
-            Viewshed {
-                visible_tiles: Vec::new(),
-                range: 8,
-                dirty: true,
-            },
-            Name {
-                name: "Player".to_string(),
-            },
-            CombatStats {
-                max_hp: 30,
-                hp: 30,
-                defense: 2,
-                power: 5,
-            },
+            Position::new(player_x, player_y),
+            Renderable::new(rltk::to_cp437('@'), c(YELLOW), c(BLACK), 0),
+            Player::new(),
+            Viewshed::new(Vec::new(), 8, true),
+            Name::new("Player"),
+            CombatStats::new(30, 30, 2, 5),
         )],
     )[0]
 }
@@ -90,28 +91,12 @@ fn monster<S: ToString>(world: &mut World, x: i32, y: i32, glyph: u8, name: S) {
     world.insert(
         (SerializeMe, Monster),
         vec![(
-            Position { x, y },
-            Renderable {
-                glyph,
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 1,
-            },
-            Viewshed {
-                visible_tiles: Vec::new(),
-                range: 8,
-                dirty: true,
-            },
-            Name {
-                name: name.to_string(),
-            },
-            BlocksTile {},
-            CombatStats {
-                max_hp: 16,
-                hp: 16,
-                defense: 1,
-                power: 4,
-            },
+            Position::new(x, y),
+            Renderable::new(glyph, c(RED), c(BLACK), 1),
+            Viewshed::new(Vec::new(), 8, true),
+            Name::new(name),
+            BlocksTile::new(),
+            CombatStats::new(16, 16, 1, 4),
         )],
     );
 }
@@ -121,23 +106,20 @@ pub fn debug_all_item(world: &mut World, x: i32, y: i32) {
     magic_missile_scroll(world, x, y);
     fireball_scroll(world, x, y);
     confusion_scroll(world, x, y);
+    dagger(world, x, y);
+    shield(world, x, y);
+    longsword(world, x, y);
+    tower_shield(world, x, y);
 }
 
 fn health_potion(world: &mut World, x: i32, y: i32) {
     world.insert(
         (SerializeMe, Item, Consumable),
         vec![(
-            Position { x, y },
-            Renderable {
-                glyph: rltk::to_cp437('¡'),
-                fg: RGB::named(rltk::MAGENTA),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 2,
-            },
-            Name {
-                name: "Health Potion".to_string(),
-            },
-            ProvidesHealing { heal_amount: 8 },
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437('¡'), c(MAGENTA), c(BLACK), 2),
+            Name::new("Health Potion"),
+            ProvidesHealing::new(8),
         )],
     );
 }
@@ -146,18 +128,11 @@ fn magic_missile_scroll(world: &mut World, x: i32, y: i32) {
     world.insert(
         (SerializeMe, Item, Consumable),
         vec![(
-            Position { x, y },
-            Renderable {
-                glyph: rltk::to_cp437(')'),
-                fg: RGB::named(rltk::CYAN),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 2,
-            },
-            Name {
-                name: "Magic Missile Scroll".to_string(),
-            },
-            Ranged { range: 6 },
-            InflictsDamage { damage: 8 },
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437(')'), c(CYAN), c(BLACK), 2),
+            Name::new("Magic Missile Scroll"),
+            Ranged::new(6),
+            InflictsDamage::new(8),
         )],
     );
 }
@@ -166,19 +141,12 @@ fn fireball_scroll(world: &mut World, x: i32, y: i32) {
     world.insert(
         (SerializeMe, Item, Consumable),
         vec![(
-            Position { x, y },
-            Renderable {
-                glyph: rltk::to_cp437(')'),
-                fg: RGB::named(rltk::ORANGE),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 2,
-            },
-            Name {
-                name: "Fireball Scroll".to_string(),
-            },
-            Ranged { range: 6 },
-            InflictsDamage { damage: 20 },
-            AreaOfEffect { radius: 3 },
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437(')'), c(ORANGE), c(BLACK), 2),
+            Name::new("Fireball Scroll"),
+            Ranged::new(6),
+            InflictsDamage::new(20),
+            AreaOfEffect::new(3),
         )],
     );
 }
@@ -187,28 +155,63 @@ fn confusion_scroll(world: &mut World, x: i32, y: i32) {
     world.insert(
         (SerializeMe, Item, Consumable),
         vec![(
-            Position { x, y },
-            Renderable {
-                glyph: rltk::to_cp437(')'),
-                fg: RGB::named(rltk::PINK),
-                bg: RGB::named(rltk::BLACK),
-                render_order: 2,
-            },
-            Name {
-                name: "Confusion Scroll".to_string(),
-            },
-            Ranged { range: 6 },
-            Confusion { turns: 4 },
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437(')'), c(PINK), c(BLACK), 2),
+            Name::new("Confusion Scroll"),
+            Ranged::new(6),
+            Confusion::new(4),
         )],
     );
 }
 
-fn room_table(map_depth: i32) -> RandomTable {
-    RandomTable::new()
-        .add("Goblin", 10)
-        .add("Orc", 1 + map_depth)
-        .add("Health Potion", 7)
-        .add("Fireball Scroll", 2 + map_depth)
-        .add("Confusion Scroll", 2 + map_depth)
-        .add("Magic Missile Scroll", 4)
+fn dagger(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (SerializeMe, Item),
+        vec![(
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437('/'), c(CYAN), c(BLACK), 2),
+            Name::new("Dagger"),
+            Equippable::new(EquipmentSlot::Melee),
+            MeleePowerBonus::new(2),
+        )],
+    );
+}
+
+fn shield(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (SerializeMe, Item),
+        vec![(
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437('('), c(CYAN), c(BLACK), 2),
+            Name::new("Shield"),
+            Equippable::new(EquipmentSlot::Shield),
+            DefenseBonus::new(1),
+        )],
+    );
+}
+
+fn longsword(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (SerializeMe, Item),
+        vec![(
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437('/'), c(YELLOW), c(BLACK), 2),
+            Name::new("Longsword"),
+            Equippable::new(EquipmentSlot::Melee),
+            MeleePowerBonus::new(4),
+        )],
+    );
+}
+
+fn tower_shield(world: &mut World, x: i32, y: i32) {
+    world.insert(
+        (SerializeMe, Item),
+        vec![(
+            Position::new(x, y),
+            Renderable::new(rltk::to_cp437('('), c(YELLOW), c(BLACK), 2),
+            Name::new("Tower Shield"),
+            Equippable::new(EquipmentSlot::Shield),
+            DefenseBonus::new(3),
+        )],
+    );
 }

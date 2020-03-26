@@ -3,13 +3,7 @@ use super::*;
 impl SufferDamage {
     // 取り出して配列に追加ができないので、別々のentityにする
     pub fn new_damage(commands: &mut CommandBuffer, victim: Entity, amount: i32) {
-        commands.insert(
-            (),
-            vec![(SufferDamage {
-                victim: EntityHolder::new(victim),
-                amount,
-            },)],
-        );
+        commands.insert((), vec![(SufferDamage::new(victim, amount),)]);
     }
 }
 

@@ -22,7 +22,6 @@ fn skip_turn(gs: &mut State) -> RunState {
         for tile in viewshed.visible_tiles.iter() {
             let idx = world_map.xy_idx(tile.x, tile.y);
             for entity_id in world_map.tile_content[idx].iter() {
-                println!("can?");
                 match gs.world.get_tag::<Monster>(*entity_id) {
                     None => {}
                     Some(_) => can_heal = false,
@@ -74,6 +73,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
                     return RunState::NextLevel;
                 }
             }
+            VirtualKeyCode::R => return RunState::ShowRemoveItem,
             _ => return RunState::AwaitingInput,
         },
     }

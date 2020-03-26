@@ -21,13 +21,7 @@ pub fn build() -> SystemBox {
                         .entries
                         .push("There is nothing here to pick up.".to_string()),
                     Some(item) => {
-                        commands.insert(
-                            (),
-                            vec![(WantsToPickupItem {
-                                collected_by: EntityHolder::new(*player_entity),
-                                item: EntityHolder::new(item),
-                            },)],
-                        );
+                        commands.insert((), vec![(WantsToPickupItem::new(*player_entity, item),)]);
                     }
                 }
             },

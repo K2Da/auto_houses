@@ -1,4 +1,5 @@
 extern crate rltk;
+
 use super::*;
 use rltk::*;
 
@@ -109,22 +110,57 @@ pub enum ItemMenuResult {
 }
 
 pub fn show_inventory(gs: &mut State, ctx: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
-    let player_entity = gs.world.resources.get::<Entity>().unwrap();
+    let player_entity: Entity = gs.world.resources.get::<Entity>().unwrap().clone();
+    let count = backpack_item_count(gs, &player_entity);
 
-    let inventory = <(Read<InBackpack>, Read<Name>)>::query();
-    let count = inventory
-        .iter_immutable(&gs.world)
-        .filter(|(pack, _)| pack.owner.entity() == *player_entity)
-        .count() as i32;
+    let mut y = (25 - (count / 2)) as i32;
+    print_box(ctx, count, y, "Inventory");
 
-    let y = (25 - (count / 2)) as i32;
-    ctx.draw_box(15, y - 2, 31, (count + 3) as i32, c(WHITE), c(BLACK));
-    ctx.print_color(18, y - 2, c(YELLOW), c(BLACK), "Inventory");
-    ctx.print_color(18, y + count + 1, c(YELLOW), c(BLACK), "ESCAPE to cancel");
-
-    let equippable = show_backpack(&gs.world, ctx, *player_entity, y);
+    let mut equippable: Vec<Entity> = Vec::new();
+    let mut j = 0;
+    for (entity, (pack, name)) in
+        <(Read<InBackpack>, Read<Name>)>::query().iter_entities(&mut gs.world)
+    {
+        if pack.owner.entity() == player_entity {
+            equippable.push(entity);
+            print_item(ctx, &mut y, &mut j, &name);
+        }
+    }
 
     key_on_menu(ctx, count, equippable)
+}
+
+fn print_box(ctx: &mut Rltk, count: i32, y: i32, title: &str) {
+    ctx.draw_box(15, y - 2, 31, (count + 3) as i32, c(WHITE), c(BLACK));
+    ctx.print_color(18, y - 2, c(YELLOW), c(BLACK), title);
+    ctx.print_color(18, y + count + 1, c(YELLOW), c(BLACK), "ESCAPE to cancel");
+}
+
+fn print_item(ctx: &mut Rltk, y: &mut i32, j: &mut i32, name: &Name) {
+    ctx.set(17, *y, c(WHITE), c(BLACK), to_cp437('('));
+    ctx.set(18, *y, c(YELLOW), c(BLACK), 97 + *j as u8);
+    ctx.set(19, *y, c(WHITE), c(BLACK), to_cp437(')'));
+    ctx.print(21, *y, &name.name);
+    *y += 1;
+    *j += 1;
+}
+
+fn backpack_item_count(gs: &mut State, player_entity: &Entity) -> i32 {
+    let inventory = <(Read<InBackpack>, Read<Name>)>::query();
+    let count = inventory
+        .iter(&mut gs.world)
+        .filter(|(pack, _)| pack.owner.entity() == *player_entity)
+        .count() as i32;
+    count
+}
+
+fn equipped_item_count(gs: &mut State, player_entity: &Entity) -> i32 {
+    let inventory = <(Read<Equipped>, Read<Name>)>::query();
+    let count = inventory
+        .iter(&mut gs.world)
+        .filter(|(pack, _)| pack.owner.entity() == *player_entity)
+        .count() as i32;
+    count
 }
 
 fn key_on_menu(
@@ -151,46 +187,45 @@ fn key_on_menu(
 }
 
 pub fn drop_item_menu(gs: &mut State, ctx: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
-    let player_entity = gs.world.resources.get::<Entity>().unwrap();
+    let player_entity: Entity = gs.world.resources.get::<Entity>().unwrap().clone();
+    let count = backpack_item_count(gs, &player_entity);
 
-    let inventory = <(Read<InBackpack>, Read<Name>)>::query();
-    let count = inventory
-        .iter_immutable(&gs.world)
-        .filter(|(pack, _)| pack.owner.entity() == *player_entity)
-        .count() as i32;
+    let mut y = (25 - (count / 2)) as i32;
+    print_box(ctx, count, y, "Drop Which Item?");
 
-    let y = (25 - (count / 2)) as i32;
-    ctx.draw_box(15, y - 2, 31, (count + 3) as i32, c(WHITE), c(BLACK));
-    ctx.print_color(18, y - 2, c(YELLOW), c(BLACK), "Drop Which Item?");
-    ctx.print_color(18, y + count + 1, c(YELLOW), c(BLACK), "ESCAPE to cancel");
-
-    let equippable = show_backpack(&gs.world, ctx, *player_entity, y);
-
-    key_on_menu(ctx, count, equippable)
-}
-
-fn show_backpack(
-    world: &legion::world::World,
-    ctx: &mut Rltk,
-    player_entity: Entity,
-    mut y: i32,
-) -> Vec<Entity> {
-    let inventory = <(Read<InBackpack>, Read<Name>)>::query();
-    let mut equippable: Vec<Entity> = Vec::new();
+    let mut droppable: Vec<Entity> = Vec::new();
     let mut j = 0;
-    for (entity, (pack, name)) in inventory.iter_entities_immutable(world) {
+    for (entity, (pack, name)) in
+        <(Read<InBackpack>, Read<Name>)>::query().iter_entities(&mut gs.world)
+    {
         if pack.owner.entity() == player_entity {
-            ctx.set(17, y, c(WHITE), c(BLACK), to_cp437('('));
-            ctx.set(18, y, c(YELLOW), c(BLACK), 97 + j as u8);
-            ctx.set(19, y, c(WHITE), c(BLACK), to_cp437(')'));
-
-            ctx.print(21, y, &name.name.to_string());
-            equippable.push(entity);
-            y += 1;
-            j += 1;
+            droppable.push(entity);
+            print_item(ctx, &mut y, &mut j, &name);
         }
     }
-    equippable
+
+    key_on_menu(ctx, count, droppable)
+}
+
+pub fn remove_item_menu(gs: &mut State, ctx: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
+    let player_entity: Entity = gs.world.resources.get::<Entity>().unwrap().clone();
+    let count = equipped_item_count(gs, &player_entity);
+
+    let mut y = (25 - (count / 2)) as i32;
+    print_box(ctx, count, y, "Remove Which Item?");
+
+    let mut removable: Vec<Entity> = Vec::new();
+    let mut j = 0;
+    for (entity, (pack, name)) in
+        <(Read<Equipped>, Read<Name>)>::query().iter_entities(&mut gs.world)
+    {
+        if pack.owner.entity() == player_entity {
+            removable.push(entity);
+            print_item(ctx, &mut y, &mut j, &name);
+        }
+    }
+
+    key_on_menu(ctx, count, removable)
 }
 
 pub fn ranged_target(
@@ -324,7 +359,28 @@ pub fn main_menu(gs: &mut State, ctx: &mut Rltk) -> MainMenuResult {
         selected: MainMenuSelection::NewGame,
     }
 }
-
 pub fn c(col: (u8, u8, u8)) -> RGB {
     RGB::named(col)
+}
+
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub enum GameOverResult {
+    NoSelection,
+    QuitToMenu,
+}
+
+pub fn game_over(ctx: &mut Rltk) -> GameOverResult {
+    let msg = "Your journey has ended!";
+    ctx.print_color_centered(15, c(YELLOW), c(BLACK), msg);
+    let msg = "One day, we'll tell you all about how you did.";
+    ctx.print_color_centered(17, c(WHITE), c(BLACK), msg);
+    let msg = "That day, sadly, is not in this chapter..";
+    ctx.print_color_centered(18, c(WHITE), c(BLACK), msg);
+    let msg = "Press any key to return to the menu.";
+    ctx.print_color_centered(20, c(MAGENTA), c(BLACK), msg);
+
+    match ctx.key {
+        None => GameOverResult::NoSelection,
+        Some(_) => GameOverResult::QuitToMenu,
+    }
 }

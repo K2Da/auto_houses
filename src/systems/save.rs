@@ -9,8 +9,12 @@ macro_rules! iterate_components {
             (BlocksTile, blocks_tile),
             (CombatStats, combat_stats),
             (Confusion, confusion),
+            (DefenseBonus, defense_bonus),
+            (Equippable, equippable),
+            (Equipped, equipped),
             (InBackpack, in_backpack),
             (InflictsDamage, inflicts_damage),
+            (MeleePowerBonus, melee_power_bonus),
             (Name, name),
             (Player, player),
             (Position, position),
@@ -22,6 +26,7 @@ macro_rules! iterate_components {
             (WantsToDropItem, wants_to_drop_item),
             (WantsToMelee, wants_to_melee),
             (WantsToPickupItem, wants_to_pickup_item),
+            (WantsToRemoveItem, wants_to_remove_item),
             (WantsToUseItem, wants_to_use_item)
         );
     };

@@ -21,6 +21,7 @@ pub struct MenuSchedules {
 
 pub struct Schedules {
     pub main: schedule::Schedule,
+    pub delete_the_dead: schedule::Schedule,
     pub player: PlayerSchedules,
     pub menu: MenuSchedules,
 }
@@ -37,15 +38,16 @@ pub fn build_schedules() -> Schedules {
             .flush()
             .add_system(damage_system::build())
             .flush()
-            .add_system(delete_the_dead_system::build())
-            .flush()
             .add_system(inventory::inventory_system::build())
             .flush()
             .add_system(inventory::item_use_system::build())
             .flush()
             .add_system(inventory::item_drop_system::build())
             .flush()
+            .add_system(inventory::item_remove_system::build())
+            .flush()
             .build(),
+        delete_the_dead: schedule(delete_the_dead_system::build()),
         player: PlayerSchedules {
             player_move: schedule(player::move_system::build()),
             get_item: schedule(player::get_item_system::build()),

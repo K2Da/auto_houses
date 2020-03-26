@@ -40,6 +40,8 @@ pub enum RunState {
     },
     SaveGame,
     NextLevel,
+    ShowRemoveItem,
+    GameOver,
 }
 
 pub struct State {
@@ -59,7 +61,7 @@ impl GameState for State {
         ctx.cls();
 
         match newrunstate {
-            RunState::MainMenu { .. } => {}
+            RunState::MainMenu { .. } | RunState::GameOver => {}
             _ => {
                 draw_map(&mut self.world, ctx);
                 {
@@ -96,12 +98,12 @@ impl GameState for State {
                 newrunstate = RunState::AwaitingInput;
             }
             RunState::ShowInventory => {
-                let result = gui::show_inventory(self, ctx);
-                match result.0 {
+                let (result, item_entity) = gui::show_inventory(self, ctx);
+                match result {
                     gui::ItemMenuResult::Cancel => newrunstate = RunState::AwaitingInput,
                     gui::ItemMenuResult::NoResponse => {}
                     gui::ItemMenuResult::Selected => {
-                        let item_entity = result.1.unwrap();
+                        let item_entity = item_entity.unwrap();
                         let player = *self.world.resources.get::<Entity>().unwrap();
                         let is_item_ranged = self
                             .world
@@ -113,39 +115,30 @@ impl GameState for State {
                                 item: item_entity,
                             }
                         } else {
-                            self.world.add_component(
-                                player,
-                                WantsToUseItem {
-                                    item: EntityHolder::new(item_entity),
-                                    target: None,
-                                },
-                            );
+                            self.world
+                                .add_component(player, WantsToUseItem::new(item_entity, None));
                             newrunstate = RunState::PlayerTurn;
                         }
                     }
                 }
             }
             RunState::ShowDropItem => {
-                let result = gui::drop_item_menu(self, ctx);
-                match result.0 {
+                let (result, item_entity) = gui::drop_item_menu(self, ctx);
+                match result {
                     gui::ItemMenuResult::Cancel => newrunstate = RunState::AwaitingInput,
                     gui::ItemMenuResult::NoResponse => {}
                     gui::ItemMenuResult::Selected => {
-                        let item_entity = result.1.unwrap();
+                        let item_entity = item_entity.unwrap();
                         let player = *self.world.resources.get::<Entity>().unwrap();
-                        self.world.add_component(
-                            player,
-                            WantsToDropItem {
-                                item: EntityHolder::new(item_entity),
-                            },
-                        );
+                        self.world
+                            .add_component(player, WantsToDropItem::new(item_entity));
                         newrunstate = RunState::PlayerTurn;
                     }
                 }
             }
             RunState::ShowTargeting { range, item } => {
-                let result = gui::ranged_target(self, ctx, range);
-                match result.0 {
+                let (result, point) = gui::ranged_target(self, ctx, range);
+                match result {
                     gui::ItemMenuResult::Cancel => newrunstate = RunState::AwaitingInput,
                     gui::ItemMenuResult::NoResponse => {}
                     gui::ItemMenuResult::Selected => {
@@ -154,7 +147,7 @@ impl GameState for State {
                             player,
                             WantsToUseItem {
                                 item: EntityHolder::new(item),
-                                target: result.1,
+                                target: point,
                             },
                         );
                         newrunstate = RunState::PlayerTurn;
@@ -192,11 +185,35 @@ impl GameState for State {
                 self.goto_next_level();
                 newrunstate = RunState::PreRun;
             }
+            RunState::ShowRemoveItem => {
+                let (selected, item_entity) = gui::remove_item_menu(self, ctx);
+                match selected {
+                    gui::ItemMenuResult::Cancel => newrunstate = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let item_entity = item_entity.unwrap();
+                        let player = *self.world.resources.get::<Entity>().unwrap();
+                        self.world
+                            .add_component(player, WantsToRemoveItem::new(item_entity));
+                        newrunstate = RunState::PlayerTurn;
+                    }
+                }
+            }
+            RunState::GameOver => match gui::game_over(ctx) {
+                gui::GameOverResult::NoSelection => {}
+                gui::GameOverResult::QuitToMenu => {
+                    self.game_over_cleanup();
+                    newrunstate = RunState::MainMenu {
+                        menu_selection: gui::MainMenuSelection::NewGame,
+                    }
+                }
+            },
         }
         {
             let mut runwriter = self.world.resources.get_mut::<RunState>().unwrap();
             *runwriter = newrunstate;
         }
+        self.schedules.delete_the_dead.execute(&mut self.world);
     }
 }
 
@@ -207,13 +224,15 @@ impl State {
 
     fn entities_to_remove_on_level_change(&mut self) -> Vec<Entity> {
         let mut to_delete: Vec<Entity> = vec![];
-        for (entity, (player, in_backpack)) in
-            <(TryRead<Player>, TryRead<InBackpack>)>::query().iter_entities(&mut self.world)
+        for (entity, (player, in_backpack, equipped)) in
+            <(TryRead<Player>, TryRead<InBackpack>, TryRead<Equipped>)>::query()
+                .iter_entities(&mut self.world)
         {
-            if player.is_none() && in_backpack.is_none() {
+            if player.is_none() && in_backpack.is_none() && equipped.is_none() {
                 to_delete.push(entity);
             }
         }
+
         to_delete
     }
 
@@ -239,31 +258,7 @@ impl State {
             spawner::spawn_room(&mut self.world, room, current_depth + 1);
         }
 
-        // Place the player and update resources
-        let (player_x, player_y) = worldmap.rooms[0].center();
-        {
-            let mut player_position = self.world.resources.get_mut::<Point>().unwrap();
-            *player_position = Point::new(player_x, player_y);
-        }
-
-        let player_entity = self.world.resources.get::<Entity>().unwrap().clone();
-        {
-            let mut player_pos_comp = self
-                .world
-                .get_component_mut::<Position>(player_entity)
-                .unwrap();
-            player_pos_comp.x = player_x;
-            player_pos_comp.y = player_y;
-        }
-
-        // Mark the player's visibility as dirty
-        {
-            let mut player_viewshed = self
-                .world
-                .get_component_mut::<Viewshed>(player_entity)
-                .unwrap();
-            player_viewshed.dirty = true;
-        }
+        self.initialize_components(worldmap);
 
         // Notify the player and give them some health
         {
@@ -273,6 +268,7 @@ impl State {
                 .push("You descend to the next legel, and take a moment to heal".to_string());
         }
 
+        let player_entity = self.world.resources.get::<Entity>().unwrap().clone();
         {
             let mut player_health = self
                 .world
@@ -280,6 +276,60 @@ impl State {
                 .unwrap();
             player_health.hp = i32::max(player_health.hp, player_health.max_hp / 2);
         }
+    }
+
+    fn initialize_components(&mut self, worldmap: Map) {
+        // Place the player and update resources
+        let (player_x, player_y) = worldmap.rooms[0].center();
+        {
+            let mut player_position = self.world.resources.get_mut::<Point>().unwrap();
+            *player_position = Point::new(player_x, player_y);
+        }
+        let player_entity = self.world.resources.get::<Entity>().unwrap().clone();
+        {
+            let mut player_pos_comp = self
+                .world
+                .get_component_mut::<Position>(player_entity)
+                .unwrap();
+            player_pos_comp.x = player_x;
+            player_pos_comp.y = player_y;
+        }
+        // Mark the player's visibility as dirty
+        {
+            let mut player_viewshed = self
+                .world
+                .get_component_mut::<Viewshed>(player_entity)
+                .unwrap();
+            player_viewshed.dirty = true;
+        }
+    }
+
+    fn game_over_cleanup(&mut self) {
+        let mut to_delete: Vec<Entity> = vec![];
+        for (entity, _) in <TryRead<Name>>::query().iter_entities(&mut self.world) {
+            to_delete.push(entity);
+        }
+
+        for target in to_delete {
+            self.world.delete(target);
+        }
+
+        let worldmap;
+        {
+            let mut map_resource = self.world.resources.get_mut::<Map>().unwrap();
+            *map_resource = Map::new_map_rooms_and_corridors(1);
+            worldmap = map_resource.clone();
+        }
+
+        for room in worldmap.rooms.iter().skip(1) {
+            spawner::spawn_room(&mut self.world, room, 1);
+        }
+
+        let (player_x, player_y) = worldmap.rooms[0].center();
+        let player_entity = spawner::player(&mut self.world, player_x, player_y);
+        self.world.resources.insert(player_entity);
+
+        self.initialize_components(worldmap);
     }
 }
 

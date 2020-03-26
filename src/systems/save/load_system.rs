@@ -28,12 +28,7 @@ pub fn initialize_entities() -> SystemBox {
             *save_data = serde_json::from_reader(File::open("./savegame.json").unwrap()).unwrap();
 
             for entity_id in &save_data.entities {
-                commands.insert(
-                    (SerializeMe,),
-                    vec![(OldEntityID {
-                        entity_id: entity_id.to_owned(),
-                    },)],
-                );
+                commands.insert((SerializeMe,), vec![(OldEntityID::new(entity_id),)]);
             }
         })
 }
